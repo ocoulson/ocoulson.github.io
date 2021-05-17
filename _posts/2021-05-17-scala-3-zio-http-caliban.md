@@ -68,7 +68,20 @@ Now we've described our queries, we need to create a service to actually handle 
         def addCat(cat: Cat): Task[Cat]
     }
 ```
+And a simple implementation, storing cats in a list.
+```scala
+    class CatServiceImpl extends CatService {
+        private var data: List[Cat] = List(
+      Cat("Faustus", List("Fluffy", "The Baws")),
+      Cat("Mephisopheles", List("Smudge", "Mefi")),
+      Cat("Dave", List("The great horned one", "Lil' Dave")),
+      Cat("Licksworth", List("Sir")))
 
+        def listCats: UIO[List[Cat]] = UIO(data)
+        def addCat(cat: Cat): UIO[Unit] = UIO{
+      data = data :+ cat
+  }
+```
 And so now we can implement our query and mutation, and instances of the `Queries` and `Mutations` are called 'resolvers' in the graphQL nomenclature. 
 
 ```scala
@@ -91,12 +104,20 @@ Looking at the documentation, calling `api.render` will print out the current gr
 ```scala
     import caliban.GraphQL._
     import caliban.RootResolver
+    import zhttp.http._
+    import zhttp.service._
+    import zio._
 
     object CatApp extends zio.App {
 
-        // ... caliban schema stuff
+        val catService: CatService = new CatServiceImpl
+        val queries: Queries = Queries(
+            listCats = catService.listCats
+        )
+        val mutations: Mutations = Mutations(
+            args => catService.addCat(args.cat)
+        )
 
-        // our graphql api
         val api = graphQL(RootResolver(queries, mutations))
 
         // zio-http Http.collect function allows us to define a route. 
@@ -114,4 +135,5 @@ Looking at the documentation, calling `api.render` will print out the current gr
 ```
 
 So now a simple `sbt run` and hit `http://localhost:8090/schema` and we get our GraphQL schema printed out.
+
 
