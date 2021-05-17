@@ -120,8 +120,8 @@ Looking at the documentation, calling `api.render` will print out the current gr
 
         val api = graphQL(RootResolver(queries, mutations))
 
-        // zio-http Http.collect function allows us to define a route. 
-        //There is an unapply function that allows us to destructure an http `Request` into a tuple containing a `Method` and a `Route`
+        // zio-http Http.collect function allows us to define routes as cases of a PartialFunction.
+        // There is an unapply function that allows us to destructure an http `Request` into a tuple containing a `Method` and a `Route`
 
         val app: HttpApp[Any, Nothing] = Http.collect[Request] {
             case Method.Get -> Root / "schema" => Response.text(api.render)
