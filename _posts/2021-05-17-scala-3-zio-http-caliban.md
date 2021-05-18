@@ -7,25 +7,25 @@ I decided to start this blog after having fun putting together a little toy proj
 
 Having recently been using a fair bit of ZIO in projects and also working on a GraphQL api using Sangria, I decided it would be fun to have a go at using [Caliban](https://ghostdogpr.github.io/caliban/), a GraphQL library making use of ZIO.
 
-So I went ahead and started a hello world Scala 3 project using :
+So to start off, we'll generate a hello world Scala 3 project using:
     
     sbt new scala/scala3.g8
 
-And went to add the `build.sbt` file, changed a few values and imported a couple of libraries I knew I'd use.
+And in the `build.sbt` file, change a few values and import the Caliban and ZIO libraries:
 
     libraryDependencies ++= Seq(
         "com.github.ghostdogpr" %% "caliban" % "0.10.0",
         "dev.zio" %% "zio" % "1.0.7"
     )
 
-I immediately ran into a problem in that my brand new Scala 3 project had been generated with `val scalaVersion := "3.0.0"` and since this was the day that v3.0.0 was released, obviously the guys at caliban and zio hadn't quite released builds with that Scala version. 
-However, they did have builds published for the last release candidate, so I just changed my scalaVersion to "3.0.0-RC3" and I was cooking with fire. 
+I immediately ran into a problem in that my Scala 3 project had been generated with `val scalaVersion := "3.0.0"` and since this was the day that v3.0.0 was released, obviously the guys at Caliban and ZIO hadn't quite released builds for that Scala version. 
+However, they did have builds published for the last release candidate, so the simplest thing for the time being is to set the project scalaVersion to `3.0.0-RC3`.
 
-Caliban has a number of different compatibility libraries for several well known Scala frameworks and http libraries listed very visibly on the site. Already being familiar with Akka-http and Play I thought it would be more interesting to try something else. Initially I thought finatra would be interesting, but then my eye fell on this:
+Caliban has a number of different compatibility libraries for several well known Scala frameworks and http libraries listed very visibly on the site. Already being familiar with Akka-http and Play I thought it would be more interesting to try something else. Initially I was going to try Finatra, but then my eye fell on this:
 
     "com.github.ghostdogpr" %% "caliban-zio-http" % "0.10.0"
 
-[ZIO-http](https://github.com/dream11/zio-http), an http library based on ZIO! I check out the repo and its had a few releases and a bunch of contributors, Definitely worth looking into!
+[ZIO-http](https://github.com/dream11/zio-http), an http library based on ZIO! I check out the repo and its had a few releases and a bunch of contributors, so definitely worth looking into!
 
 So with that and also Circe for Json both having builds for 3.0.0-RC3, I add them to my dependencies and now I can start looking at coding.
 
@@ -119,8 +119,9 @@ object CatApp extends zio.App {
 
     val api = graphQL(RootResolver(queries, mutations))
 
-    // zio-http Http.collect function allows us to define routes as cases of a PartialFunction.
-    // There is an unapply function that allows us to destructure an http `Request` into a tuple containing a `Method` and a `Route`
+    // Http.collect allows us to define routes using pattern matching.
+    // This is perfect for body-less get requests, althoug for POSTs or
+    // similar, we'll need something more
 
     val app: HttpApp[Any, Nothing] = Http.collect[Request] {
         case Method.Get -> Root / "schema" => Response.text(api.render)
@@ -161,3 +162,20 @@ type Queries {
   listCats: [Cat!]!
 }
 ```
+
+So far so good, but we've not really added much in the way of new Scala 3 features. So let's add a bit to our Cat model: a URL field and an enumerated Colour value. Of course we'll need to update the list of Cats in our CatService.
+
+```scala
+import java.net.URL
+case class Cat(name: String, nicknames: List[String], picUrl: Option[URL], colour: Colour)
+
+enum Colour:
+  case Tabby extends Colour
+  case Calico extends Colour
+  case Black extends Colour
+  case White extends Colour
+  case BlackAndWhite extends Colour
+  case Ginger extends Colour
+```
+
+But now there are compilation errors because Caliban doesn't know how to handle the URL
