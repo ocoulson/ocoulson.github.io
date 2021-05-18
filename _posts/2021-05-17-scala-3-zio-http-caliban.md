@@ -34,8 +34,8 @@ I find a great medium [article](https://medium.com/@ghostdogpr/graphql-in-scala-
 So let's start with a simple model, a cat that we can keep a collection of: 
     
 ```scala
-    import java.net.URL
-    case class Cat(name: String, nicknames: List[String])
+import java.net.URL
+case class Cat(name: String, nicknames: List[String])
 ```
 
 and to get a list of cats we'll need a query to list them, and also a mutation to add a cat.
@@ -43,19 +43,19 @@ and to get a list of cats we'll need a query to list them, and also a mutation t
 In caliban, we define queries (and mutations) as fields on case classes. So let's create a `Queries` class:
 
 ```scala
-    case class Queries(
-        // listingCats doesn't require any Env, and shouldn't really fail, so UIO will do
-        listCats: UIO[List[Cat]]
-    )
+case class Queries(
+    // listingCats doesn't require any Env, and shouldn't really fail, so UIO will do
+    listCats: UIO[List[Cat]]
+)
 ```
 Simple enough, but to add a cat we'll also need an argument, but we can define another case class for that, called `AddCatArgs`, in this case only needing one arg: the cat.
 
 ```scala
-    case class AddCatArgs(cat: Cat)
-    case class Mutations(
-        //let's assume this doesn't need any Env either, and also can't fail, and we don't want anything back from it
-        addCat: AddCatArgs => UIO[Unit]
-    )
+case class AddCatArgs(cat: Cat)
+case class Mutations(
+    //let's assume this doesn't need any Env either, and also can't fail, and we don't want anything back from it
+    addCat: AddCatArgs => UIO[Unit]
+)
 ```
 
 So there we have a query and a mutation, defined nicely as case classes. When an argument is needed the mutation (or query) is defined as a function.
@@ -63,75 +63,75 @@ So there we have a query and a mutation, defined nicely as case classes. When an
 Now we've described our queries, we need to create a service to actually handle the queries. We can start with a trait:
 
 ```scala
-    trait CatService {
-        def listCats: UIO[List[Cat]]
-        def addCat(cat: Cat): Task[Cat]
-    }
+trait CatService {
+    def listCats: UIO[List[Cat]]
+    def addCat(cat: Cat): Task[Cat]
+}
 ```
 And a simple implementation, storing cats in a list.
 ```scala
-    class CatServiceImpl extends CatService {
-        private var data: List[Cat] = List(
-      Cat("Faustus", List("Fluffy", "The Baws")),
-      Cat("Mephisopheles", List("Smudge", "Mefi")),
-      Cat("Dave", List("The great horned one", "Lil' Dave")),
-      Cat("Licksworth", List("Sir")))
+class CatServiceImpl extends CatService {
+    private var data: List[Cat] = List(
+    Cat("Faustus", List("Fluffy", "The Baws")),
+    Cat("Mephisopheles", List("Smudge", "Mefi")),
+    Cat("Dave", List("The great horned one", "Lil' Dave")),
+    Cat("Licksworth", List("Sir")))
 
-        def listCats: UIO[List[Cat]] = UIO(data)
-        def addCat(cat: Cat): UIO[Unit] = UIO{
-      data = data :+ cat
-  }
+    def listCats: UIO[List[Cat]] = UIO(data)
+    def addCat(cat: Cat): UIO[Unit] = UIO{
+    data = data :+ cat
+}
 ```
 And so now we can implement our query and mutation, and instances of the `Queries` and `Mutations` are called 'resolvers' in the graphQL nomenclature. 
 
 ```scala
-    import caliban.GraphQL._
-    import caliban.RootResolver
+import caliban.GraphQL._
+import caliban.RootResolver
 
 
-    val catService: CatService = ???
+val catService: CatService = ???
+val queries: Queries = Queries(
+    listCats = catService.listCats
+)
+val mutations: Mutations = Mutations(
+    args => catService.addCat(args.cat)
+)
+//Create a GraphQL object and pass in our resolvers.
+val api = graphQL(RootResolver(queries, mutations))
+```
+According to the Caliban documentation, calling `api.render` will print out the current graphQL schema, which is great, so I'm thinking I might expose that via an endpoint. Time to look at zio-http.
+
+```scala
+import caliban.GraphQL._
+import caliban.RootResolver
+import zhttp.http._
+import zhttp.service._
+import zio._
+
+object CatApp extends zio.App {
+
+    val catService: CatService = new CatServiceImpl
     val queries: Queries = Queries(
         listCats = catService.listCats
     )
     val mutations: Mutations = Mutations(
         args => catService.addCat(args.cat)
     )
-    //Create a GraphQL object and pass in our resolvers.
+
     val api = graphQL(RootResolver(queries, mutations))
-```
-According to the Caliban documentation, calling `api.render` will print out the current graphQL schema, which is great, so I'm thinking I might expose that via an endpoint. Time to look at zio-http.
 
-```scala
-    import caliban.GraphQL._
-    import caliban.RootResolver
-    import zhttp.http._
-    import zhttp.service._
-    import zio._
+    // zio-http Http.collect function allows us to define routes as cases of a PartialFunction.
+    // There is an unapply function that allows us to destructure an http `Request` into a tuple containing a `Method` and a `Route`
 
-    object CatApp extends zio.App {
-
-        val catService: CatService = new CatServiceImpl
-        val queries: Queries = Queries(
-            listCats = catService.listCats
-        )
-        val mutations: Mutations = Mutations(
-            args => catService.addCat(args.cat)
-        )
-
-        val api = graphQL(RootResolver(queries, mutations))
-
-        // zio-http Http.collect function allows us to define routes as cases of a PartialFunction.
-        // There is an unapply function that allows us to destructure an http `Request` into a tuple containing a `Method` and a `Route`
-
-        val app: HttpApp[Any, Nothing] = Http.collect[Request] {
-            case Method.Get -> Root / "schema" => Response.text(api.render)
-        }
-
-        //Define a port and start our Server in the main 'run' method 
-        private val PORT = 8090
-        override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] = {
-            Server.start(PORT, app).exitCode
+    val app: HttpApp[Any, Nothing] = Http.collect[Request] {
+        case Method.Get -> Root / "schema" => Response.text(api.render)
     }
+
+    //Define a port and start our Server in the main 'run' method 
+    private val PORT = 8090
+    override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] = {
+        Server.start(PORT, app).exitCode
+}
 ```
 
 So now a simple `sbt run` and hit `http://localhost:8090/schema` and we get our GraphQL schema printed out. Caliban has autogenerated a schema from our case classes including both a type and an input for Cat as it is returned from the listCats query and used as an argument in the addCat mutation.
