@@ -34,7 +34,6 @@ I find a great medium [article](https://medium.com/@ghostdogpr/graphql-in-scala-
 So let's start with a simple model, a cat that we can keep a collection of: 
     
 ```scala
-import java.net.URL
 case class Cat(name: String, nicknames: List[String])
 ```
 
