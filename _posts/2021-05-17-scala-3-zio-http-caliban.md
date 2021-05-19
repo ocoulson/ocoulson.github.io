@@ -1,6 +1,6 @@
 ---
 layout: post
-title: Trying Scala 3 with zio-http and caliban
+title: Trying Scala 3 with zio-http and Caliban
 ---
 
 I decided to write this post after having fun putting together a little toy project when I wanted to try out some of the new Scala 3 features, since it was finally released 3.0.0 FINAL, a few days ago.
