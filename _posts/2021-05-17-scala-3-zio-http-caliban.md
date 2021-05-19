@@ -195,6 +195,32 @@ given ArgBuilder[Url] = ArgBuilder.string.flatmap(
 )
 ```
 
+And so now our schema is updated, with our enum and URL modeled as a string:
+```graphql
+enum Colour {
+  Black
+  BlackAndWhite
+  Calico
+  Ginger
+  Tabby
+  White
+}
+
+input CatInput {
+  name: String!
+  nicknames: [String!]!
+  picUrl: String
+  colour: Colour!
+}
+
+type Cat {
+  name: String!
+  nicknames: [String!]!
+  picUrl: String
+  colour: Colour!
+}
+```
+
 Now to be able to query the graphql api, we need a post endpoint, and to read in a GraphQLRequest model (case class provided by Caliban).
 Since we need to access the body of the request, we can't use the same pattern match we did for the GET endpoint.
 Instead, we need to pull apart the Request and match on various parts of it.
