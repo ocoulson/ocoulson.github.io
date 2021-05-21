@@ -5,7 +5,9 @@ title: Dependency Injection with ZIO Layers
 
 Improving our CatsApp using ZIO Environment types and ZLayers for dependency Injection
 
-So last time we set up our small Caliban, ZIO-Http GraphQL app, with 2 simple endpoints. One to print out the GraphQL Schema, and the other to accept GraphQL requests in the form of HTTP POST requests.
+---
+
+So [last time]({% post_url 2021-05-17-scala-3-zio-http-caliban %}) we set up our small Caliban, ZIO-Http GraphQL app, with 2 simple endpoints. One to print out the GraphQL Schema, and the other to accept GraphQL requests in the form of HTTP POST requests.
 
 To handle our requests, we implemented a very simple service, that kept an in-memory list of cats which we could query, and edit. Obviously this implementation isn't great if we want our app to properly store data, any changes to the default state would be lost every time the app is restarted. 
 
