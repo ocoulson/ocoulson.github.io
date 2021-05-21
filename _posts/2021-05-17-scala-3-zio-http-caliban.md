@@ -446,3 +446,6 @@ In terms of how to take this further, here are some suggestions which I might tr
 ### Other:
 - Make the CatService into a ZIO service and use `ZLayers` and Resource types to inject an instance of the service into our GraphQL API, Caliban being based on ZIO also has the concept of Resource types. We could make our existing CatServiceImpl into a mock or test version and hook up a database for live code.
 - Look into how you might implement some security features, such as Authentication and CORS using `zio-http`
+
+
+The code for this project can be found at: https://github.com/ocoulson/zio-http-caliban
