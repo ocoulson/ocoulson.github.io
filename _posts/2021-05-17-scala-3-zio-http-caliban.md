@@ -3,6 +3,8 @@ layout: post
 title: Trying Scala 3 with zio-http and Caliban
 ---
 
+Writing a simple GraphQL application to try out Scala 3 and some ZIO-based libraries
+
 I decided to write this post after having fun putting together a little toy project when I wanted to try out some of the new Scala 3 features, since it was finally released 3.0.0 FINAL, a few days ago.
 
 Having recently been using a fair bit of ZIO in projects and also working on a GraphQL api using Sangria, I decided it would be fun to have a go at using [Caliban](https://ghostdogpr.github.io/caliban/), a GraphQL library making use of ZIO.
@@ -448,4 +450,4 @@ In terms of how to take this further, here are some suggestions which I might tr
 - Look into how you might implement some security features, such as Authentication and CORS using `zio-http`
 
 
-The code for this project can be found at: https://github.com/ocoulson/zio-http-caliban
+The code for this project can be found [here](https://github.com/ocoulson/zio-http-caliban)

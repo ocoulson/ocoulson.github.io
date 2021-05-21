@@ -13,7 +13,7 @@ However, this would make a suitable implementation for unit testing our applicat
 
 When we want to be able to provide different implementations of a service for testing vs production, dependency injection should probably be the first tool we reach for, and ZIO has a great built in mechanism for this.
 
-### The ZIO Service Pattern
+### ZIO Resource types and the ZIO Service Pattern
 
 The main abstraction in the ZIO library is the `ZIO` type:
 
@@ -23,13 +23,13 @@ The main abstraction in the ZIO library is the `ZIO` type:
 ```
 Where the `A` type is what we want to get back, the `E` type is a possible failure type (such as a Scala Throwable) and the `R` type is an Environment type, something that this effect requires in order to be executed. 
 
-Our service already returns ZIO effects, in the form of `Tasks` and `UIOs`, these are 2 type aliases for ZIO where the `R` type is Any (or 'no environment needed');
+Our service already returns ZIO effects, in the form of `UIOs`, a type alias for ZIO where the `R` type is Any (or 'no environment needed') and the `E` type is Nothing (no errors thrown);
 
 In order to define a service which can be injected as an `R` type, we'll follow the `ZIO Service Pattern` which has 4 main parts:
-  - A trait `OurService` defining our functions that return effects
-  - A type alias for a Has[OurService]
-  - An implementation of `OurService` in a ZLayer which can be provided to code that requires a `Has[OurService]` in the `R` type.
-  - And finally some functions to be able to create the effects with the `R` type requirement.
+  1. A trait `OurService` defining our functions that return effects
+  2. A type alias for a Has[OurService]
+  3. An implementation of `OurService` in a ZLayer which can be provided to code that requires a `Has[OurService]` in the `R` type.
+  4. And finally some functions to be able to create the effects with the `R` type requirement.
 
 So if we take our CatService trait from before:
 ```scala
@@ -199,4 +199,4 @@ For the next improvement we could investigate building another implementation, w
  - Define our new 'live' implementation of CatsStore as a ZLayer that requires our new Database Layer as an `RIn` type.
  
 
- The code for this can be found at: https://github.com/ocoulson/zio-http-caliban/tree/using-zlayers
+ The code for this can be found [here](https://github.com/ocoulson/zio-http-caliban/tree/using-zlayers)
