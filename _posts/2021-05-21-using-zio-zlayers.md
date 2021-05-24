@@ -152,12 +152,13 @@ And where we define our resolvers:
 object schema extends GenericSchema[CatsStoreService]
 import schema.{given, *}
 
-// Here instead of needing an instance of a service, we just call
+// Now instead of needing an instance of a service, we just call
 // our summoner functions
 val queries = Queries(CatsStore.listCats)
 val mutations = Mutations(args => CatsStore.addCat(args.cat))
 
-// And our api now has our Service as a dependency
+// And our api now has our Service as a dependency type which
+// Caliban has from ZIO
 val api: GraphQL[CatsStoreService] = graphQL(RootResolver(queries, mutations))
 ```
 
@@ -168,9 +169,9 @@ This is part of the implicits overhaul in Scala 3 designed to make it a bit less
 We're almost there, now we need to adjust some types for our HTTP code, and inject our implementation of CatsStore:
 
 ```scala
-// Just as with the Caliban GraphQL now has a resource type, our
-// Our HttpApp also needs one, since executing the request now
-// returns an effect requiring a resource
+// Just as the Caliban GraphQL now has a resource type, our
+// HttpApp also needs to declare one, since executing the request
+// now returns an effect requiring a resource
 val app: HttpApp[CatsStoreService, Nothing] = Http.collectM[Request] {
     case Method.GET -> Root / "schema" => UIO(Response.text(api.render))
     case r: Request if r.matches(Method.POST -> Root / "graphql") => 
