@@ -29,9 +29,9 @@ Our service already returns ZIO effects, in the form of `UIOs`, a type alias for
 
 In order to define a service which can be injected as an `R` type, we'll follow the `ZIO Service Pattern` which has 4 main parts:
   1. A trait `OurService` defining our functions that return effects
-  2. A type alias for a Has[OurService]
+  2. A type alias for a Has[OurService], a type for a ZIO `R` type
   3. An implementation of `OurService` in a ZLayer which can be provided to code that requires a `Has[OurService]` in the `R` type.
-  4. And finally some functions to be able to create the effects with the `R` type requirement.
+  4. And finally some summoner functions to be able to create the effects with the `R` type requirement.
 
 So if we take our CatService trait from before:
 ```scala
@@ -40,9 +40,9 @@ trait CatService:
   def addCat(cat: Cat): UIO[Unit]
 ```
 
-well we can actually reuse this, as it is exactly what part 1 of the pattern is, but we'll put it in an object and rename it. Why will become clearer later.
+we can reuse this, as it is exactly what part 1 of the pattern is, but we'll put it in an object and rename it. Why will become clearer later.
 
-We'll also add our type alias.
+We'll also add the type alias.
 
 ```scala
 import models.Cat
@@ -64,13 +64,15 @@ So now externally to this, if we have a function that requires our service, we w
 ```scala
 def myFunction: ZIO[CatsStoreService, Throwable, Something] = ???
 ```
-which is a bit tidier than `ZIO[Has[CatsStore.Service], Throwable, Something]`
+which reads a little better than `ZIO[Has[CatsStore.Service], Throwable, Something]`
 
 ### ZLayers
 
-So now we need an implementation of our `Service` trait, and we've actually got something just fine, our `CatServiceImpl` with the in-memory list. As mentioned, this would be good for a test implementation.
+So now we need an implementation of our `Service` trait, and we've already got something that will do; our `CatServiceImpl` with the in-memory list. As mentioned, this would be good for a test implementation.
 
-But we want to provide this implementation as a ZLayer, so it can be provided later before any effects requiring it as an `R` are run.
+In order to provide this service to an effect that requires, it we need to define a ZLayer. We can then 'inject' this layer later before any effects requiring it as an `R` are run. 
+
+We'll use the `ZLayer.succeed()` function and just create an anonymous implementation of the Service trait:
 
 ```scala
 val test: ZLayer[Any, Nothing, Has[CatsStore.Service]] = ZLayer.succeed(new Service {
@@ -93,14 +95,20 @@ It also has 3 types:
  - `E` again is a possible error type,
  - and `ROut` is the type produced that can be provided to build either other layers, or fulfil an effect's environment type.
 
-We need no dependency to build our service and it won't fail during creation, so `RIn` is simply `Any` (no dependency) and `E` is `Nothing` (no error).
+Our service is very simple: we need no dependency to build it and it won't fail during creation, so `RIn` is simply `Any` (no dependency) and `E` is `Nothing` (no error).
 
 Just as ZIO has aliases like `Task`, `RIO` and `UIO` for when there are no dependencies or errors, as does ZLayer. 
 
 So where `UIO[A]` is an alias for `ZIO[Any, Nothing, A]` (no dependency, no error),
 `ULayer[ROut]` is an alias for `ZLayer[Any, Nothing, ROut]`, and we'll use that for simplicity.
 
-So now we have our trait, type alias and an implementation (we could also now define a second implementation, for example one that connects to a database), but to complete the pattern, we'll add some functions to make our effects with our service as a dependency:
+```scala
+val test: ULayer[Has[CatsStore.Service]] = ...
+```
+
+#### Summoner Functions
+
+So now we have our trait, type alias and an implementation (we could also now define a second implementation, for example one that connects to a database), but to complete the pattern, we'll add some functions that will call the functions of our service when it is provided as a dependency, using the `ZIO.accessM()` function:
 
 ```scala
 
@@ -129,7 +137,7 @@ The 'summoner' functions return an effect that, when provided with our service a
 
 The nice thing about Summoner functions defined in this object along with rest, is that we can now call these functions with `CatStore.listCats`, which reads nicely and gives us what we want.
 
-### Connecting our ZLayer to the rest of the app
+### Modify our App to use Effects with Resource types
 
 Now we can look back to our Caliban code, and see what we need to do to update our schema to use our new service.
 
@@ -152,12 +160,13 @@ And where we define our resolvers:
 object schema extends GenericSchema[CatsStoreService]
 import schema.{given, *}
 
-// Here instead of needing an instance of a service, we just call
+// Now instead of needing an instance of a service, we just call
 // our summoner functions
 val queries = Queries(CatsStore.listCats)
 val mutations = Mutations(args => CatsStore.addCat(args.cat))
 
-// And our api now has our Service as a dependency
+// And our api now has our Service as a dependency type which
+// Caliban has from ZIO
 val api: GraphQL[CatsStoreService] = graphQL(RootResolver(queries, mutations))
 ```
 
@@ -168,9 +177,9 @@ This is part of the implicits overhaul in Scala 3 designed to make it a bit less
 We're almost there, now we need to adjust some types for our HTTP code, and inject our implementation of CatsStore:
 
 ```scala
-// Just as with the Caliban GraphQL now has a resource type, our
-// Our HttpApp also needs one, since executing the request now
-// returns an effect requiring a resource
+// Just as the Caliban GraphQL now has a resource type, our
+// HttpApp also needs to declare one, since executing the request
+// now returns an effect requiring a resource
 val app: HttpApp[CatsStoreService, Nothing] = Http.collectM[Request] {
     case Method.GET -> Root / "schema" => UIO(Response.text(api.render))
     case r: Request if r.matches(Method.POST -> Root / "graphql") => 
@@ -192,7 +201,7 @@ override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] = {
 
 ### Wrapping up
 
-So now we've added some simple dependency injection, and passed in the implementation of our service right where our code is actually run. 
+So now we've injected our test implementation immediately before the code is run, we can see how or where we might inject an alternative implementation, if we had one.
 
 We've seen how to construct the ZIO Service pattern and also how the ZIO-based services of Caliban and ZIO-HTTP work easily with the ZLayer.
 
