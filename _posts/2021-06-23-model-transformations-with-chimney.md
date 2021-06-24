@@ -3,7 +3,7 @@ layout: post
 title: Model Transformations with Chimney
 ---
 
-A great little library for transfomations between similar models.
+Reduce boilerplate for transfomations between similar models. Validate your inputs as you build your internal model.
 
 ---
 
@@ -12,8 +12,9 @@ There are several scenarios when working on a project where we might need to tra
 On a project I work on, we try to keep our different domain models separate, so for example we'll have duplicated or nearly duplicated models for an entity for when it is stored in a database from when it is returned on the API. 
 
 There are several reasons for doing this, including:
-- it keeps your code decoupled from other parts of the application, 
+- we can have internal models with Value Classes to improve type safety without altering the interface between your code and an external service / different bounded context 
 - it can shield the different parts of the application from changes made in another part.
+- you're following Domain Driven Design which suggests avoiding sharing models from different bounded contexts.
 
 BUT, converting an object into another very similar or identical class can be a bit long winded. 
 
@@ -186,10 +187,13 @@ def validate(input: PersonInput): Validated[Person] =
     .transform
 ```
 
-So clearly, we've lost the brevity of the transformation here, but all our validation is performed, and we collect errors into a Vector[String] meaning we'll either get a Right containing a person or a Left containing all validation errors to report back at once.
+Notice that since our transformation can fail and we wrap the response in a `Validated`, we must now use the -F varients of the calls `intoF`, `withFieldConstF` and `withFieldComputedF` for any validation function that returns a `Validated`. With the simple `id` field, there's no chance of failure so we continue to use `withFieldConst`.
 
+Clearly, we've lost the brevity of the transformation here, but all our validation is performed, and we collect errors into a Vector[String] meaning we'll either get a Right containing a person or a Left containing all validation errors to report back at once.
 
-In the case of this sort of input validation use case, it's unlikely we'd use this code in more than one place, but if we did need to, we could make use of the `Transformer` type class, defining the transformation like so:
+#### Transformers
+
+In this sort of input validation use case, we may not need to use this code in more than one place, but if we did need to, we could make use of the `Transformer` type class, defining the transformation like so:
 
 ```scala
 import io.scalaland.chimney._
@@ -198,8 +202,11 @@ implicit val addressTransformer: TransformerF[Validated, AddressInput, Address] 
     .withFieldComputedF(_.houseNumber, a =>  Option.unless(a.houseNumber < 1)(HouseNumber(a.houseNumber)).toRight(Vector("House number can't be less than 1")))    
       .withFieldComputedF(_.streetName, a => Option.unless(input.address.streetName.isEmpty())(StreetName(input.address.streetName)).toRight(Vector("Empty street name")))
       .withFieldComputedF(_.postcode, a => validatePostcodeV(a.postcode))
-      .transform
+      .buildTransformer
 ```
+
+Notice that here we must use the `withFieldComputedF` function because we don't have anything external to refer to to use `withFieldConstF`. 
+The second argument of this call is a function that takes the input type and returns the output type wrapped in whatever higher kinded type we want (here a Validated).
 
 This is a little more difficult to do with the PersonInput type since we need to provide a PersonId value from externally, unless we are able to generate it within the function.
 
