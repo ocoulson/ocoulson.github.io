@@ -189,7 +189,7 @@ def validate(input: PersonInput): Validated[Person] =
 So clearly, we've lost the brevity of the transformation here, but all our validation is performed, and we collect errors into a Vector[String] meaning we'll either get a Right containing a person or a Left containing all validation errors to report back at once.
 
 
-In the case of this sort of input validation use case, it's unlikely we'd use this code that one place, but if we did need to, we could make use of the Transformer type class, defining the transformation like so:
+In the case of this sort of input validation use case, it's unlikely we'd use this code in more than one place, but if we did need to, we could make use of the `Transformer` type class, defining the transformation like so:
 
 ```scala
 import io.scalaland.chimney._
