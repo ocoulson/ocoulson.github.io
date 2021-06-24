@@ -128,7 +128,7 @@ This api: `a.into[B].transform`, is the same as `a.transformInto[B]`, but we can
 So there we have it, our `PersonInput` has been changed into a `Person`, including the nested address object.
 
 
-###Input validation
+### Input validation
 
 To take our example a little further, we might apply some validation rules to the PersonInput, such as:
 
@@ -192,6 +192,7 @@ So clearly, we've lost the brevity of the transformation here, but all our valid
 In the case of this sort of input validation use case, it's unlikely we'd use this code that one place, but if we did need to, we could make use of the Transformer type class, defining the transformation like so:
 
 ```scala
+import io.scalaland.chimney._
 implicit val addressTransformer: TransformerF[Validated, AddressInput, Address] = 
   Transformer.defineF[Validated, AddressInput, Address]
     .withFieldComputedF(_.houseNumber, a =>  Option.unless(a.houseNumber < 1)(HouseNumber(a.houseNumber)).toRight(Vector("House number can't be less than 1")))    
@@ -212,9 +213,10 @@ implicit val personTransformer: TransformerF[Validated, PersonInput, Person] =
     .buildTransformer
 ```
 
-Note that we can make use of the `addressTransformer` in the `personTransformer`, and this might come in useful if Address were to be used elsewhere in the application, such as for a Business entity or similar.
+Although not obvious at first, the line `_.address.transformIntoF[Validated, Address]` makes use of the `addressTransformer` so it must be in scope. 
+Having the Address Transformer defined separately might come in useful if Address were to be used elsewhere in the application, such as for a Business entity or similar.
 
-Now that we have a person transformer defined, we can revisit our original transformation call:
+So, now that we have a person transformer defined, we can revisit our original transformation call:
 
 ```scala
 def validate(input: PersonInput): Validated[Person] = 
