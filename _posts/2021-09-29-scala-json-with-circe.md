@@ -98,17 +98,17 @@ However the above code wouldn't compile because circe doesn't know how to make a
 
 ```scala
 import io.circe.Decoder
-// Circe uses a Cursor to traverse a json string and get various Json elements. Then for each one we transform it into the expected type (String, Double etc.)
+// Circe uses a Cursor to traverse a Json and get specified elements. Then for each one we transform it into the expected type (String, Double etc.)
 val itemDecoder: Decoder[Item] = new Decoder[Item] {
     override def apply(c: HCursor): Result[Item] = for {
-      id <- c.downField("id").as[String]
+      id <- c.downField("id").as[String] // The .as[T] function itself requires a Decoder for T. Circe provides implicit implementations for all simple types like 'String', 'Double' and 'Boolean', accessible because they are defined in the Decoder scope.
       name <- c.downField("name").as[String]
       value <- c.downField("value").as[Double]
     } yield Item(id, name, value)
   }
 ```
 
-The decoder function will return a `Result[T]` which is just an alias for `Either[Error, T]` where `Error` is circe's own error type. 2 common types of errors are:
+The `decoder` function will return a `Result[T]` which is just an alias for `Either[Error, T]` where `Error` is circe's own error type. 2 common types of errors are:
   - ParsingFailure - When a JSON string is not valid JSON
   - DecodingFailure - When a Json object cannot be decoded into the expected model according to the Decoder rules.
 
@@ -156,7 +156,9 @@ def addItem(request: Request): Response = {
 }
 ```
 
-So above, the line `createdItem.asJson.noSpaces` is first creating a `Json` from the 'createdItem' `Item` and then printing it to a string with no spaces or newlines e.g.: `{"foo":"bar"}`. In order to use the `asJson` extension message we must import `io.circe.syntax._` in the scope.
+So above, the line "`createdItem.asJson.noSpaces`" is
+ - first creating a `Json` from the 'createdItem' `Item` with the `asJson` extension method (we must import `io.circe.syntax._` in the scope to use this)
+ - then printing it to a string with no spaces or newlines e.g.: `{"foo":"bar"}`. 
 
 However, again there is a problem because although Circe knows how to read an `Item` from a `Json`, it doesn't know how to write an `Item` into a `Json`. 
 
